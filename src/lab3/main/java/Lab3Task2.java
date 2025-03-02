@@ -108,7 +108,7 @@ public class Lab3Task2 {
     private static void printMatrix(double[][] matrix) {
         for (double[] row : matrix) {
             System.out.println(Arrays.stream(row)
-                    .mapToObj(v -> String.format("%.2f", v)) // Округляем до 2 знаков
+                    .mapToObj(v -> String.format("%.2f", v))
                     .collect(Collectors.joining(", ", "[", "]")));
         }
     }
