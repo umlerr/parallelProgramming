@@ -1,5 +1,4 @@
 import mpi.MPI;
-
 import java.util.Random;
 
 public class Lab2Task2 {
@@ -10,37 +9,51 @@ public class Lab2Task2 {
         int size = MPI.COMM_WORLD.Size();
         int rank = MPI.COMM_WORLD.Rank();
 
-        Random random = new Random();
         int numElements = 10;
+        int elementsPerProcess = numElements / size;
         int[] numbers = new int[numElements];
-        for (int i = 0; i < numElements; i++) {
-            numbers[i] = random.nextInt(201) - 100;
-        }
-
-        int localEvenCount = countPositive(numbers);
-
-        System.out.printf("Process %d (Thread ID: %d) numbers: %s\n", rank,
-                Thread.currentThread().getId(), arrayToString(numbers));
-        System.out.printf("Process %d found %d even positive numbers.\n", rank,
-                localEvenCount);
-
-        int totalEvenCount;
+        int[] localNumbers = new int[elementsPerProcess];
 
         if (rank == 0) {
-            totalEvenCount = localEvenCount;
-            for (int i = 1; i < size; i++) {
-                int[] received = new int[1];
-                MPI.COMM_WORLD.Recv(received, 0, 1, MPI.INT, i, 99);
-                totalEvenCount += received[0];
+            Random random = new Random();
+            for (int i = 0; i < numElements; i++) {
+                numbers[i] = random.nextInt(201) - 100;
             }
+
+            System.out.printf("Process %d (Thread ID: %d) full numbers: %s\n", rank,
+                    Thread.currentThread().getId(), arrayToString(numbers));
+
+            for (int i = 1; i < size; i++) {
+                MPI.COMM_WORLD.Send(numbers, i * elementsPerProcess, elementsPerProcess, MPI.INT, i, 99);
+            }
+
+            System.arraycopy(numbers, 0, localNumbers, 0, elementsPerProcess);
+        } else {
+            MPI.COMM_WORLD.Recv(localNumbers, 0, elementsPerProcess, MPI.INT, 0, 99);
+        }
+
+        System.out.printf("Process %d (Thread ID: %d) local numbers: %s\n", rank,
+                Thread.currentThread().getId(), arrayToString(localNumbers));
+
+        int localEvenCount = countPositive(localNumbers);
+        System.out.printf("Process %d found %d even positive numbers.\n", rank, localEvenCount);
+
+        if (rank == 0) {
+            int totalEvenCount = localEvenCount;
+            int[] receivedCount = new int[1];
+
+            for (int i = 1; i < size; i++) {
+                MPI.COMM_WORLD.Recv(receivedCount, 0, 1, MPI.INT, i, 100);
+                totalEvenCount += receivedCount[0];
+            }
+
             System.out.printf("Total even positive numbers: %d\n", totalEvenCount);
         } else {
-            MPI.COMM_WORLD.Send(new int[]{localEvenCount}, 0, 1, MPI.INT, 0, 99);
+            MPI.COMM_WORLD.Send(new int[]{localEvenCount}, 0, 1, MPI.INT, 0, 100);
         }
 
         MPI.Finalize();
     }
-
 
     private static int countPositive(int[] numbers) {
         int count = 0;
